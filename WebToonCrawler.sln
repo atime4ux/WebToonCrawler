@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28917.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebToonCrawler", "WebToonCrawler\WebToonCrawler.csproj", "{92446EF1-7904-41CB-BCDA-DCCB22979D7C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD} = {C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibWebToonCrawler", "LibWebToonCrawler\LibWebToonCrawler.csproj", "{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Debug|Any CPU.ActiveCfg = Release|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Debug|Any CPU.Build.0 = Release|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Debug|x86.ActiveCfg = Debug|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Debug|x86.Build.0 = Debug|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Release|Any CPU.ActiveCfg = Release|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Release|Any CPU.Build.0 = Release|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Release|x86.ActiveCfg = Release|x86
+		{92446EF1-7904-41CB-BCDA-DCCB22979D7C}.Release|x86.Build.0 = Release|x86
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Debug|Any CPU.ActiveCfg = Release|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Debug|Any CPU.Build.0 = Release|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Debug|x86.Build.0 = Debug|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Release|x86.ActiveCfg = Release|Any CPU
+		{C6B9DBD7-CCBF-4056-9FDC-D656D9A9DDAD}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B8C9301D-1FF8-4ECF-85D5-D59D64C8DFD9}
+	EndGlobalSection
+EndGlobal
