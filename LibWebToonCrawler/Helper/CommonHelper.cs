@@ -69,6 +69,12 @@ namespace LibWebToonCrawler.Helper
             return attribs.Length > 0 ? attribs[0].StringValue : null;
         }
 
+        /// <summary>
+        /// 모든 class name을 포함하는지
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="arrClassName"></param>
+        /// <returns></returns>
         public static bool HasClass(HtmlNode node, params string[] arrClassName)
         {
             return arrClassName.All(x => node.GetAttributeValue("class", "").Split(' ').Contains(x));
@@ -101,14 +107,14 @@ namespace LibWebToonCrawler.Helper
             return result;
         }
 
-        public static async Task<HtmlDocument> DownloadHtmlDocument(string url)
+        public static async Task<HtmlDocument> DownloadHtmlDocument(string url, System.Text.Encoding encoding = null)
         {
             HtmlDocument doc = new HtmlDocument();
 
             WebRequest request = WebRequest.Create(url);
             using (WebResponse response = await request.GetResponseAsync())
             {
-                doc.Load(response.GetResponseStream());
+                doc.Load(response.GetResponseStream(), encoding == null ? System.Text.Encoding.UTF8 : encoding);
                 response.Close();
             }
 
