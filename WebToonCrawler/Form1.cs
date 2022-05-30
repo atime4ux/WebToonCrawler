@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace WebToonCrawler
@@ -14,9 +14,14 @@ namespace WebToonCrawler
     {
         WindowsFormHelper FormHelper = new WindowsFormHelper();
 
-        Thread threadMainJob;
+        Task mainTask;
 
         bool RunningFlag = false;
+
+        public bool GetRunningFlag()
+        {
+            return RunningFlag;
+        }
 
         private string LastCrawlingInfoFullPath
         {
@@ -69,35 +74,32 @@ namespace WebToonCrawler
 
         private void ChangeRunningState()
         {
-            Thread changeStateThread;
+            Task changeStateTask;
 
             if (RunningFlag)
             {
-                changeStateThread = new Thread(new ThreadStart(delegate
+                changeStateTask = new Task(() =>
                 {
                     FormHelper.SetRichTextBox(txtCrawlingInfoJson, "", false);
                     FormHelper.SetLabel(lblSleepRemain, "");
                     FormHelper.buttonToggle(btnRun, "중지", true);
-                }));
+                });
             }
             else
             {
-                changeStateThread = new Thread(new ThreadStart(delegate
+                changeStateTask = new Task(() =>
                 {
                     FormHelper.buttonToggle(btnRun, "중지중...", true);
                     FormHelper.SetLabel(lblSleepRemain, "");
                     FormHelper.SetRichTextBox(txtCrawlingInfoJson, "", true);
 
-                    while (threadMainJob.ThreadState != ThreadState.Stopped)
-                    {
-                        Thread.Sleep(100);
-                    }
+                    Task.WaitAny(mainTask);
 
                     FormHelper.buttonToggle(btnRun, "실행", true);
-                }));
+                });
             }
 
-            changeStateThread.Start();
+            changeStateTask.Start();
         }
 
 
@@ -153,14 +155,13 @@ namespace WebToonCrawler
 
                 CrawlerEngine crawlerEngine = new CrawlerEngine(
                     CrawlingInfoJson,
+                    GetRunningFlag,
                     new Logger(WriteStatus, WriteItem, WriteSleepStatus)
                     );
 
                 RunningFlag = true;
                 
-                threadMainJob = new Thread(new ThreadStart(crawlerEngine.Run));
-                threadMainJob.Name = "loopStart";
-                threadMainJob.Start();
+                mainTask = Task.Run(crawlerEngine.Run);
             }
             else
             {
@@ -178,11 +179,12 @@ namespace WebToonCrawler
         }
 
 
-        private void Application_ApplicationExit(object sender, EventArgs e)
+        private async void Application_ApplicationExit(object sender, EventArgs e)
         {
-            if (threadMainJob != null)
+            RunningFlag = false;
+            if (mainTask != null && mainTask.IsCompleted == false)
             {
-                threadMainJob.Abort();
+                await mainTask;
             }
         }
     }

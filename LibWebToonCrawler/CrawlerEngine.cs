@@ -14,7 +14,10 @@ namespace LibWebToonCrawler
     {
         private List<CrawlingInfo> LstCrawlingInfo { get; set; }
 
+        public Func<bool> GetRunningFlag { get; set; }
+
         public CrawlerEngine(string json
+            , Func<bool> getRunningFlag
             , Logger logAction = null)
         {
             try
@@ -23,6 +26,8 @@ namespace LibWebToonCrawler
             }
             catch (Exception ex)
             { }
+
+            GetRunningFlag = getRunningFlag ?? (() => { return true; });
 
             var lstParsingModule = new List<IParser<CrawlingItem>>();
             lstParsingModule.Add(new Toonkor(LstCrawlingInfo, logAction.WriteStatus));
@@ -37,22 +42,24 @@ namespace LibWebToonCrawler
             foreach (var info in LstCrawlingInfo)
             {
                 //작업 수행
-
-                SiteName siteName;
-                if (Enum.TryParse<SiteName>(info.SiteName, out siteName))
+                if (GetRunningFlag())
                 {
-                    var parsing = LstParsingModule.FirstOrDefault(x => x.GetParsingTarget() == siteName);
-                    if (parsing != null)
+                    SiteName siteName;
+                    if (Enum.TryParse<SiteName>(info.SiteName, out siteName))
                     {
-                        LogAction.WriteStatus($"downloading [{info.SiteName}] data");
+                        var parsing = LstParsingModule.FirstOrDefault(x => x.GetParsingTarget() == siteName);
+                        if (parsing != null)
+                        {
+                            LogAction.WriteStatus($"downloading [{info.SiteName}] data");
 
-                        List<CrawlingItem> lstItem = await parsing.GetParsingList();
+                            List<CrawlingItem> lstItem = await parsing.GetParsingList();
 
-                        LogAction.WriteStatus($"{parsing.GetParsingTarget()} : success get {lstItem.Count} items");
-                        LogAction.WriteItem(lstItem);
+                            LogAction.WriteStatus($"{parsing.GetParsingTarget()} : success get {lstItem.Count} items");
+                            LogAction.WriteItem(lstItem);
 
-                        //다운로드 처리
-                        Download(lstItem);
+                            //다운로드 처리
+                            Download(lstItem);
+                        }
                     }
                 }
             }
@@ -71,20 +78,22 @@ namespace LibWebToonCrawler
                 foreach (string number in lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
                 {
                     //제목, 회차별 비동기 다운로드
-
-                    lstTask.Add(Task.Factory.StartNew(() => {
-                        List<CrawlingItem> lstAsyncGroup = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList();
-
-                        LogAction.WriteStatus($"download async start : {lstAsyncGroup[0].ItemId}");
-                        DownloadNumberOfTitle(lstAsyncGroup, lstAllItem);
-                        LogAction.WriteStatus($"download async end : {lstAsyncGroup[0].ItemId}");
-                    }));
-
-                    if (lstTask.Count == maxAsyncJob)
+                    if (GetRunningFlag())
                     {
-                        //최대 10개까지 비동기 작업
-                        Task.WaitAny(lstTask.ToArray());
-                        lstTask.RemoveAll(x=> x.IsCompleted);
+                        lstTask.Add(Task.Factory.StartNew(() => {
+                            List<CrawlingItem> lstAsyncGroup = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList();
+
+                            LogAction.WriteStatus($"download async start : {lstAsyncGroup[0].ItemId}");
+                            DownloadNumberOfTitle(lstAsyncGroup, lstAllItem);
+                            LogAction.WriteStatus($"download async end : {lstAsyncGroup[0].ItemId}");
+                        }));
+
+                        if (lstTask.Count == maxAsyncJob)
+                        {
+                            //최대 10개까지 비동기 작업
+                            Task.WaitAny(lstTask.ToArray());
+                            lstTask.RemoveAll(x => x.IsCompleted);
+                        }
                     }
                 }
             }
@@ -139,36 +148,39 @@ namespace LibWebToonCrawler
                         int fileIdx = 0;
                         foreach (var item in lstItem)
                         {
-                            if (fileIdx == 0)
+                            if (GetRunningFlag())
                             {
-                                LogAction.WriteStatus($"download img start : {item.ItemId}");
-                            }
+                                if (fileIdx == 0)
+                                {
+                                    LogAction.WriteStatus($"download img start : {item.ItemId}");
+                                }
 
-                            try
-                            {
-                                //await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
-                                webClient.DownloadFile(item.ItemUrl, getImageFilePath(item, fileIdx));
-                                item.DownloadComplete = true;
+                                try
+                                {
+                                    //await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
+                                    webClient.DownloadFile(item.ItemUrl, getImageFilePath(item, fileIdx));
+                                    item.DownloadComplete = true;
 
-                                LogAction.WriteItem(lstAllItem);
-                            }
-                            catch (Exception ex)
-                            {
-                                LogAction.WriteStatus($"download img error : {item.ItemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
-                            }
+                                    LogAction.WriteItem(lstAllItem);
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogAction.WriteStatus($"download img error : {item.ItemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
+                                }
 
-                            if (item == lstItem.Last())
-                            {
-                                //마지막 or 다음 항목과 다른 경우 압축 후 삭제
-                                zipImg(item);
-                                LogAction.WriteStatus($"download img end : {item.ItemId}");
+                                if (item == lstItem.Last())
+                                {
+                                    //마지막 or 다음 항목과 다른 경우 압축 후 삭제
+                                    zipImg(item);
+                                    LogAction.WriteStatus($"download img end : {item.ItemId}");
 
-                                //마커 초기화
-                                fileIdx = 0;
-                            }
-                            else
-                            {
-                                fileIdx++;
+                                    //마커 초기화
+                                    fileIdx = 0;
+                                }
+                                else
+                                {
+                                    fileIdx++;
+                                }
                             }
                         }
                     }
