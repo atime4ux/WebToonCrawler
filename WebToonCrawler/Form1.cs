@@ -113,10 +113,16 @@ namespace WebToonCrawler
 
         private void WriteItem(List<CrawlingItem> lstItem)
         {
-            var itemStatus = lstItem.GroupBy(x => new { x.ItemTitle, x.ItemNumber }).OrderBy(x => x.Key.ItemTitle).ThenBy(x => x.Key.ItemNumber).Select(x =>
-            {
-                return $"{x.Key.ItemTitle} - {x.Key.ItemNumber} : {x.Count(g => g.DownloadComplete == true)}/{x.Count()}";
-            }).ToArray();
+            var itemStatus = lstItem.GroupBy(x => new { x.ItemTitle, x.ItemNumber })
+                .Select(x => new
+                {
+                    x.Key.ItemTitle,
+                    x.Key.ItemNumber,
+                    TotanCnt = x.Count(),
+                    CompleteCnt = x.Count(g => g.DownloadComplete == true)
+                }).Where(x => x.CompleteCnt != x.TotanCnt)
+                .OrderBy(x => x.ItemTitle).ThenBy(x => x.ItemNumber)
+                .Select(x => $"{x.ItemTitle} - {x.ItemNumber} : {x.CompleteCnt}/{x.TotanCnt}");
 
             FormHelper.SetTextBox(txtItemList, string.Join("\r\n", itemStatus), "N");
         }
