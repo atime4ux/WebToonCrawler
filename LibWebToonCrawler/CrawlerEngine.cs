@@ -62,6 +62,8 @@ namespace LibWebToonCrawler
 
         private void Download(List<CrawlingItem> lstItem)
         {
+            int maxAsyncJob = 10;
+
             List<Task> lstTask = new List<Task>();
             foreach (string title in lstItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
             {
@@ -76,6 +78,13 @@ namespace LibWebToonCrawler
                         DownloadNumberOfTitle(lstAsyncGroup);
                         LogAction.WriteStatus($"download async end : {lstAsyncGroup[0].ItemId}");
                     }));
+
+                    if (lstTask.Count == maxAsyncJob)
+                    {
+                        //최대 10개까지 비동기 작업
+                        Task.WaitAny(lstTask.ToArray());
+                        lstTask.RemoveAll(x=> x.IsCompleted);
+                    }
                 }
             }
 
@@ -122,13 +131,13 @@ namespace LibWebToonCrawler
                     Action<CrawlingItem> zipImg = (ci) =>
                     {
                         //압축
-                        string prevPath = getDownlaodPath(ci);
+                        string srcPath = getDownlaodPath(ci);
                         string destPath = $"{baseDir}\\{ci.ItemId}.zip";
-                        
-                        ZipFile.CreateFromDirectory(prevPath, destPath);
+
+                        ZipFile.CreateFromDirectory(srcPath, destPath);
 
                         //압축 후 삭제
-                        System.IO.Directory.Delete(prevPath, true);
+                        System.IO.Directory.Delete(srcPath, true);
                     };
 
                     using (var webClient = new System.Net.WebClient())
@@ -173,9 +182,7 @@ namespace LibWebToonCrawler
             catch (Exception ex)
             { }
             finally
-            {
-                //CompleteAsyncJob();
-            }
+            { }
         }
 
         public void Run()
@@ -190,6 +197,7 @@ namespace LibWebToonCrawler
             {
                 SiteName = "툰코",
                 Title = "제목1",
+                IndexUrl = "https://abc.com/def",
                 StartIdx = 1,
                 EndIdx = 10
             });
@@ -197,6 +205,7 @@ namespace LibWebToonCrawler
             {
                 SiteName = "툰코",
                 Title = "제목2",
+                IndexUrl = "https://abc.com/def2",
                 StartIdx = 1,
                 EndIdx = 10
             });
