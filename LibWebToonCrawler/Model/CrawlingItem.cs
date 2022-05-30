@@ -14,7 +14,7 @@
                 string result;
                 if (int.TryParse(ItemNumber, out _))
                 {
-                    result = $"{ItemTitle} - {ItemNumber}";
+                    result = $"{ItemTitle}_{ItemNumber}";
                 }
                 else
                 {
@@ -24,5 +24,7 @@
                 return result;
             }
         }
+
+        public bool DownloadComplete { get; set; }
     }
 }

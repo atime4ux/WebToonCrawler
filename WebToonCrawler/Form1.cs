@@ -1,10 +1,11 @@
-﻿using System.Threading;
-using LibWebToonCrawler;
-using LibWebToonCrawler.Model;
+﻿using LibWebToonCrawler;
 using LibWebToonCrawler.Helper;
+using LibWebToonCrawler.Model;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace WebToonCrawler
@@ -13,7 +14,7 @@ namespace WebToonCrawler
     {
         WindowsFormHelper FormHelper = new WindowsFormHelper();
 
-        System.Threading.Thread threadMainJob;
+        Thread threadMainJob;
 
         bool RunningFlag = false;
 
@@ -68,11 +69,11 @@ namespace WebToonCrawler
 
         private void ChangeRunningState()
         {
-            System.Threading.Thread changeStateThread;
+            Thread changeStateThread;
 
             if (RunningFlag)
             {
-                changeStateThread = new System.Threading.Thread(new System.Threading.ThreadStart(delegate
+                changeStateThread = new Thread(new ThreadStart(delegate
                 {
                     FormHelper.SetRichTextBox(txtCrawlingInfoJson, "", false);
                     FormHelper.SetLabel(lblSleepRemain, "");
@@ -81,15 +82,15 @@ namespace WebToonCrawler
             }
             else
             {
-                changeStateThread = new System.Threading.Thread(new System.Threading.ThreadStart(delegate
+                changeStateThread = new Thread(new ThreadStart(delegate
                 {
                     FormHelper.buttonToggle(btnRun, "중지중...", true);
                     FormHelper.SetLabel(lblSleepRemain, "");
                     FormHelper.SetRichTextBox(txtCrawlingInfoJson, "", true);
 
-                    while (threadMainJob.ThreadState != System.Threading.ThreadState.Stopped)
+                    while (threadMainJob.ThreadState != ThreadState.Stopped)
                     {
-                        System.Threading.Thread.Sleep(100);
+                        Thread.Sleep(100);
                     }
 
                     FormHelper.buttonToggle(btnRun, "실행", true);
@@ -112,15 +113,12 @@ namespace WebToonCrawler
 
         private void WriteItem(List<CrawlingItem> lstItem)
         {
-            FormHelper.SetTextBox(txtItemList, "", "N");
-
-            int idx = 0;
-            foreach (CrawlingItem item in lstItem)
+            var itemStatus = lstItem.GroupBy(x => new { x.ItemTitle, x.ItemNumber }).OrderBy(x => x.Key.ItemTitle).ThenBy(x => x.Key.ItemNumber).Select(x =>
             {
-                idx++;
-                FormHelper.SetTextBox(txtItemList
-                    , $"{idx.ToString().PadLeft(5, '0')} - {item.ItemTitle} - {item.ItemUrl}\r\n", "Y");
-            }
+                return $"{x.Key.ItemTitle} - {x.Key.ItemNumber} : {x.Count(g => g.DownloadComplete == true)}/{x.Count()}";
+            }).ToArray();
+
+            FormHelper.SetTextBox(txtItemList, string.Join("\r\n", itemStatus), "N");
         }
 
         private void WriteSleepStatus(string sleepStatus)

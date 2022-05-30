@@ -102,12 +102,6 @@
     <None Include="Resources\Notify.bmp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\LibWebToonCrawler\LibWebToonCrawler.csproj">
-      <Project>{c6b9dbd7-ccbf-4056-9fdc-d656d9a9ddad}</Project>
-      <Name>LibWebToonCrawler</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">
       <Visible>False</Visible>
       <ProductName>Microsoft .NET Framework 4.8%28x86 및 x64%29</ProductName>
@@ -119,7 +113,12 @@
       <Install>false</Install>
     </BootstrapperPackage>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\LibWebToonCrawler\LibWebToonCrawler.csproj">
+      <Project>{c6b9dbd7-ccbf-4056-9fdc-d656d9a9ddad}</Project>
+      <Name>LibWebToonCrawler</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

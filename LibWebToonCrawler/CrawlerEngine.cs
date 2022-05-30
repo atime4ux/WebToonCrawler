@@ -60,22 +60,23 @@ namespace LibWebToonCrawler
             LogAction.WriteStatus("finish\r\n====================");
         }
 
-        private void Download(List<CrawlingItem> lstItem)
+        private List<CrawlingItem> lstDownloadStatus = new List<CrawlingItem>();
+        private void Download(List<CrawlingItem> lstAllItem)
         {
             int maxAsyncJob = 10;
 
             List<Task> lstTask = new List<Task>();
-            foreach (string title in lstItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
+            foreach (string title in lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
             {
-                foreach (string number in lstItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
+                foreach (string number in lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
                 {
                     //제목, 회차별 비동기 다운로드
 
                     lstTask.Add(Task.Factory.StartNew(() => {
-                        List<CrawlingItem> lstAsyncGroup = lstItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList();
+                        List<CrawlingItem> lstAsyncGroup = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList();
 
                         LogAction.WriteStatus($"download async start : {lstAsyncGroup[0].ItemId}");
-                        DownloadNumberOfTitle(lstAsyncGroup);
+                        DownloadNumberOfTitle(lstAsyncGroup, lstAllItem);
                         LogAction.WriteStatus($"download async end : {lstAsyncGroup[0].ItemId}");
                     }));
 
@@ -91,7 +92,7 @@ namespace LibWebToonCrawler
             Task.WaitAll(lstTask.ToArray());
         }
 
-        private void DownloadNumberOfTitle(List<CrawlingItem> lstItem)
+        private void DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
             try
             {
@@ -101,16 +102,7 @@ namespace LibWebToonCrawler
 
                     Func<CrawlingItem, string> getDownlaodPath = (ci) =>
                     {
-                        string path;
-                        if (int.TryParse(ci.ItemNumber, out _))
-                        {
-                            path = $"{baseDir}\\{ci.ItemTitle}_{ci.ItemNumber}";
-                        }
-                        else
-                        {
-                            path = $"{baseDir}\\{ci.ItemNumber}";
-                        }
-
+                        string path = $"{baseDir}\\{ci.ItemId}";
                         if (System.IO.Directory.Exists(path) == false)
                         {
                             System.IO.Directory.CreateDirectory(path);
@@ -156,6 +148,9 @@ namespace LibWebToonCrawler
                             {
                                 //await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
                                 webClient.DownloadFile(item.ItemUrl, getImageFilePath(item, fileIdx));
+                                item.DownloadComplete = true;
+
+                                LogAction.WriteItem(lstAllItem);
                             }
                             catch (Exception ex)
                             {
