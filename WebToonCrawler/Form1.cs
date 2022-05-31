@@ -105,6 +105,8 @@ namespace WebToonCrawler
 
         private void WriteStatus(string status)
         {
+            CommonHelper.WriteLog(status);
+
             if (txtLog.Text.Length > 8000)
             {
                 FormHelper.SetTextBox(txtLog, "", "N");
