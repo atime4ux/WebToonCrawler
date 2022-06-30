@@ -120,6 +120,11 @@ namespace LibWebToonCrawler.Helper
 
             return doc;
         }
+
+        public static string RemoveInvalidFileNameChars(string fileName, string separator = "_")
+        {
+            return string.Join(separator, fileName.Split(System.IO.Path.GetInvalidFileNameChars(), '.'));
+        }
     }
 
     public class StringValueAttribute : Attribute

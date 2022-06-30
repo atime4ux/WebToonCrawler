@@ -29,8 +29,8 @@ namespace LibWebToonCrawler.Parser
             {
                 return new ToonkorConfig
                 {
-                    PageBaseUrl = "toonkor112.com",
-                    ImgBaseUrl = "toonkor112.com",
+                    PageBaseUrl = "toonkor122.com",
+                    ImgBaseUrl = "toonkor122.com",
                     BaseUrlFormat = "https://{0}/{1}",
                     ImgUrlFormat = "https://{0}{1}"
                 };
@@ -52,7 +52,7 @@ namespace LibWebToonCrawler.Parser
 
         public string GetPageUrl(string title, string path)
         {
-            path = string.Join("/", path.Split('/').Where(x => string.IsNullOrEmpty(x) == false).Select(x => System.Web.HttpUtility.UrlEncode(x)));
+            path = string.Join("/", path.Split('/').Where(x => string.IsNullOrEmpty(x) == false));
             return string.Format(toonkorConfig.BaseUrlFormat, toonkorConfig.PageBaseUrl, path);
         }
 

@@ -111,7 +111,7 @@ namespace LibWebToonCrawler
 
                     Func<CrawlingItem, string> getDownlaodPath = (ci) =>
                     {
-                        string path = $"{baseDir}\\{ci.ItemId}";
+                        string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(ci.ItemId)}";
                         if (System.IO.Directory.Exists(path) == false)
                         {
                             System.IO.Directory.CreateDirectory(path);
@@ -133,7 +133,7 @@ namespace LibWebToonCrawler
                     {
                         //압축
                         string srcPath = getDownlaodPath(ci);
-                        string destPath = $"{baseDir}\\{ci.ItemId}.zip";
+                        string destPath = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(ci.ItemId)}.zip";
 
                         ZipFile.CreateFromDirectory(srcPath, destPath);
 

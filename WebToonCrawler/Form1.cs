@@ -125,7 +125,8 @@ namespace WebToonCrawler
                     TotanCnt = x.Count(),
                     CompleteCnt = x.Count(g => g.DownloadComplete == true)
                 }).Where(x => x.CompleteCnt != x.TotanCnt)
-                .OrderBy(x => x.ItemTitle).ThenBy(x => x.ItemNumber)
+                .OrderByDescending(x => x.CompleteCnt > 0 ? 1 : 0)
+                .ThenBy(x => x.ItemTitle).ThenBy(x => x.ItemNumber)
                 .Select(x => $"{x.ItemTitle} - {x.ItemNumber} : {x.CompleteCnt}/{x.TotanCnt}");
 
             FormHelper.SetTextBox(txtItemList, string.Join("\r\n", itemStatus), "N");
