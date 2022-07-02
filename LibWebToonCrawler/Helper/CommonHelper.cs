@@ -123,7 +123,9 @@ namespace LibWebToonCrawler.Helper
 
         public static string RemoveInvalidFileNameChars(string fileName, string separator = "_")
         {
-            return string.Join(separator, fileName.Split(System.IO.Path.GetInvalidFileNameChars(), '.'));
+            var lstInvalidChar = System.IO.Path.GetInvalidFileNameChars().ToList();
+            lstInvalidChar.Add('.');
+            return string.Join(separator, fileName.Split(lstInvalidChar.ToArray()));
         }
     }
 

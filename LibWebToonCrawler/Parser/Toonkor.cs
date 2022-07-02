@@ -17,8 +17,8 @@ namespace LibWebToonCrawler.Parser
     {
         public class ToonkorConfig
         {
-            public string PageBaseUrl { get; set; }
-            public string ImgBaseUrl { get; set; }
+            public string PageBaseDomain { get; set; }
+            public string ImgBaseDomain { get; set; }
             public string BaseUrlFormat { get; set; }
             public string ImgUrlFormat { get; set; }
         }
@@ -29,8 +29,8 @@ namespace LibWebToonCrawler.Parser
             {
                 return new ToonkorConfig
                 {
-                    PageBaseUrl = "toonkor122.com",
-                    ImgBaseUrl = "toonkor122.com",
+                    PageBaseDomain = "toonkor122.com",
+                    ImgBaseDomain = "toonkor122.com",
                     BaseUrlFormat = "https://{0}/{1}",
                     ImgUrlFormat = "https://{0}{1}"
                 };
@@ -53,7 +53,7 @@ namespace LibWebToonCrawler.Parser
         public string GetPageUrl(string title, string path)
         {
             path = string.Join("/", path.Split('/').Where(x => string.IsNullOrEmpty(x) == false));
-            return string.Format(toonkorConfig.BaseUrlFormat, toonkorConfig.PageBaseUrl, path);
+            return string.Format(toonkorConfig.BaseUrlFormat, toonkorConfig.PageBaseDomain, path);
         }
 
         public string GetImageUrl(string imgSrc)
@@ -64,7 +64,7 @@ namespace LibWebToonCrawler.Parser
             }
             else
             {
-                return string.Format(toonkorConfig.ImgUrlFormat, toonkorConfig.ImgBaseUrl, imgSrc);
+                return string.Format(toonkorConfig.ImgUrlFormat, toonkorConfig.ImgBaseDomain, imgSrc);
             }
         }
 
@@ -77,6 +77,12 @@ namespace LibWebToonCrawler.Parser
             HtmlNode table = doc.GetElementbyId("fboardlist").SelectNodes("table").FirstOrDefault(x => x.HasClass("web_list"));
             if (table != null)
             {
+                Uri myUri = new Uri(url);
+                string host = myUri.Host;
+
+                toonkorConfig.PageBaseDomain = host;
+                toonkorConfig.ImgBaseDomain = host;
+
                 foreach (var tr in table.SelectNodes("tr"))
                 {
                     var td = tr.SelectNodes("td").FirstOrDefault(x => x.GetAttributeValue("class", "").Split(' ').Contains("content__title"));
