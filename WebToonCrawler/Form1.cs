@@ -72,8 +72,10 @@ namespace WebToonCrawler
         }
 
 
-        private void ChangeRunningState()
+        private void ChangeRunningState(bool runningFlag)
         {
+            RunningFlag = runningFlag;
+
             Task changeStateTask;
 
             if (RunningFlag)
@@ -89,7 +91,7 @@ namespace WebToonCrawler
             {
                 changeStateTask = new Task(() =>
                 {
-                    FormHelper.buttonToggle(btnRun, "중지중...", true);
+                    FormHelper.buttonToggle(btnRun, "중지중...", false);
                     FormHelper.SetLabel(lblSleepRemain, "");
                     FormHelper.SetRichTextBox(txtCrawlingInfoJson, "", true);
 
@@ -156,23 +158,37 @@ namespace WebToonCrawler
                 //start
                 SaveMonitoringInfoFile();
 
-                CrawlerEngine crawlerEngine = new CrawlerEngine(
+                ChangeRunningState(true);
+
+                RunTask();
+            }
+            else
+            {
+                //stop
+                ChangeRunningState(false);
+            }
+        }
+
+        private async void RunTask()
+        {
+            CrawlerEngine crawlerEngine = new CrawlerEngine(
                     CrawlingInfoJson,
                     GetRunningFlag,
                     new Logger(WriteStatus, WriteItem, WriteSleepStatus)
                     );
 
-                RunningFlag = true;
-                
-                mainTask = Task.Run(crawlerEngine.Run);
-            }
-            else
+            mainTask = Task.Run(crawlerEngine.Run);
+
+            try
             {
-                //stop
-                RunningFlag = false;
+                await mainTask;
+            }
+            catch (Exception ex)
+            {
+                WriteStatus(ex.Message);
             }
 
-            ChangeRunningState();
+            ChangeRunningState(false);
         }
 
 

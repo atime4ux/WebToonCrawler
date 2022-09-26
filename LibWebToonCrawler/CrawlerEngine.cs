@@ -30,12 +30,12 @@ namespace LibWebToonCrawler
             GetRunningFlag = getRunningFlag ?? (() => { return true; });
 
             var lstParsingModule = new List<IParser<CrawlingItem>>();
-            lstParsingModule.Add(new Toonkor(LstCrawlingInfo, logAction.WriteStatus));
+            lstParsingModule.Add(new Toonkor(LstCrawlingInfo, GetRunningFlag, logAction.WriteStatus));
 
             base.Init(null, logAction, lstParsingModule);
         }
 
-        private async void RunParser()
+        private void RunParser()
         {
             LogAction.WriteStatus("start");
 
@@ -52,7 +52,7 @@ namespace LibWebToonCrawler
                         {
                             LogAction.WriteStatus($"downloading [{info.SiteName}] data");
 
-                            List<CrawlingItem> lstItem = await parsing.GetParsingList();
+                            List<CrawlingItem> lstItem = parsing.GetParsingList();
 
                             LogAction.WriteStatus($"{parsing.GetParsingTarget()} : success get {lstItem.Count} items");
                             LogAction.WriteItem(lstItem);

@@ -44,9 +44,9 @@ namespace LibWebToonCrawler.Parser
         /// 
         /// </summary>
         /// <param name="funcLog">로그 기록 메소드</param>
-        public Toonkor(List<CrawlingInfo> lstCrawlingInfo, Action<string> funcLog = null) : base(SiteName.툰코)
+        public Toonkor(List<CrawlingInfo> lstCrawlingInfo, Func<bool> funcGetRunningFlag, Action<string> funcLog = null) : base(SiteName.툰코)
         {
-            toonkorConfig = Init<ToonkorConfig>(DefaultConfig, funcLog);
+            toonkorConfig = Init<ToonkorConfig>(DefaultConfig, funcGetRunningFlag, funcLog);
             lstToonkorCrawlingInfo = lstCrawlingInfo.Where(x => x.SiteName == GetParsingTarget().ToString()).ToList();
         }
 
@@ -68,11 +68,11 @@ namespace LibWebToonCrawler.Parser
             }
         }
 
-        private async Task<Dictionary<string, string>> GetWebToonIndex(string url)
+        private Dictionary<string, string> GetWebToonIndex(string url)
         {
             var result = new Dictionary<string, string>();
 
-            HtmlDocument doc = await CommonHelper.DownloadHtmlDocument(url);
+            HtmlDocument doc = CommonHelper.DownloadHtmlDocument(url);
 
             HtmlNode table = doc.GetElementbyId("fboardlist").SelectNodes("table").FirstOrDefault(x => x.HasClass("web_list"));
             if (table != null)
@@ -107,9 +107,9 @@ namespace LibWebToonCrawler.Parser
             return result.Reverse().ToDictionary(x=> x.Key, x=> x.Value);
         }
 
-        private async Task<List<CrawlingItem>> GetPageItem(string pageUrl, string title, string itemNumber)
+        private List<CrawlingItem> GetPageItem(string pageUrl, string title, string itemNumber)
         {
-            Func<string, Task<HtmlDocument>> getPageData = async (url) =>
+            Func<string, HtmlDocument> getPageData = (url) =>
             {
                 FuncLog($"start[download page data] : {url}");
 
@@ -117,7 +117,7 @@ namespace LibWebToonCrawler.Parser
 
                 try
                 {
-                    string strHtml = await CommonHelper.DownloadHtmlString(url);
+                    string strHtml = CommonHelper.DownloadHtmlString(url);
 
                     //res.split('var toon_img')[1].split(" = '")[1].split('\';')[0]
                     var splitOpt = StringSplitOptions.None;
@@ -142,7 +142,7 @@ namespace LibWebToonCrawler.Parser
 
 
             var lstItem = new List<CrawlingItem>();
-            HtmlDocument domData = await getPageData(pageUrl);
+            HtmlDocument domData = getPageData(pageUrl);
             if (domData != null)
             {
                 foreach (var img in domData.DocumentNode.ChildNodes)
@@ -231,7 +231,7 @@ namespace LibWebToonCrawler.Parser
         }
 
 
-        public async Task<List<CrawlingItem>> GetParsingList()
+        public List<CrawlingItem> GetParsingList()
         {
             Func<CrawlingInfo, bool> CanRun = (crawlingInfo) =>
             {
@@ -241,7 +241,7 @@ namespace LibWebToonCrawler.Parser
                 {
                     FuncLog("can't run - blocked");
                 }
-                else if (crawlingInfo.StartIdx < 0 || crawlingInfo.EndIdx < 0 || crawlingInfo.StartIdx > crawlingInfo.EndIdx)
+                else if (crawlingInfo.StartIdx < 0 || crawlingInfo.EndIdx < 0 || (crawlingInfo.EndIdx != 0 && crawlingInfo.StartIdx > crawlingInfo.EndIdx))
                 {
                     FuncLog("can't run - invalid idx");
                 }
@@ -262,25 +262,39 @@ namespace LibWebToonCrawler.Parser
 
             foreach (var curCrawlingInfo in lstToonkorCrawlingInfo)
             {
+                if (FuncGetRunningFlag() == false)
+                {
+                    break;
+                }
+
                 if (CanRun(curCrawlingInfo) == true)
                 {
                     base.LastRunDate = DateTime.Now;
 
                     //전체 목차 다운로드
-                    Dictionary<string, string> dicIndex = (await GetWebToonIndex(curCrawlingInfo.IndexUrl));
+                    Dictionary<string, string> dicIndex = GetWebToonIndex(curCrawlingInfo.IndexUrl);
                     if (dicIndex.Count > 0)
                     {
-                        if (curCrawlingInfo.StartIdx == 0 && curCrawlingInfo.EndIdx == 0)
+                        if (curCrawlingInfo.StartIdx < 1)
                         {
-                            //전체 다운로드
                             curCrawlingInfo.StartIdx = 1;
+                        }
+
+                        if (curCrawlingInfo.EndIdx == 0 || curCrawlingInfo.EndIdx > dicIndex.Count)
+                        {
                             curCrawlingInfo.EndIdx = dicIndex.Count;
                         }
 
-                        if (curCrawlingInfo.StartIdx >= 1 && curCrawlingInfo.EndIdx <= dicIndex.Count)
+                        if (curCrawlingInfo.StartIdx <= curCrawlingInfo.EndIdx)
                         {
+                            int curIndex = curCrawlingInfo.StartIdx;
                             foreach (var page in dicIndex.Skip(curCrawlingInfo.StartIdx - 1).Take(curCrawlingInfo.EndIdx - curCrawlingInfo.StartIdx + 1))
                             {
+                                if (FuncGetRunningFlag() == false)
+                                {
+                                    break;
+                                }
+
                                 string pageName = page.Key;
                                 string path = page.Value;
                                 string url = GetPageUrl(curCrawlingInfo.Title, path);
@@ -288,16 +302,17 @@ namespace LibWebToonCrawler.Parser
                                 FuncLog($"{curCrawlingInfo.Title} - downloading page {pageName}");
 
 
-                                List<CrawlingItem> lstItem = await GetPageItem(url, curCrawlingInfo.Title, pageName);
+                                List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, pageName);
                                 if (lstItem.Count == 0)
                                 {
-                                    FuncLog($"blocked");
-                                    break;
+                                    FuncLog($"{curCrawlingInfo.Title} - {curIndex} - empty");
                                 }
                                 else
                                 {
                                     result.AddRange(lstItem);
                                 }
+
+                                curIndex++;
                             }
                         }
                     }

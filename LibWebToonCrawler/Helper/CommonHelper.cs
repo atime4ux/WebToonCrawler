@@ -90,7 +90,7 @@ namespace LibWebToonCrawler.Helper
             return result;
         }
 
-        public static async Task<string> DownloadHtmlString(string url)
+        public static async Task<string> DownloadHtmlStringAsync(string url)
         {
             string result = "";
 
@@ -107,12 +107,43 @@ namespace LibWebToonCrawler.Helper
             return result;
         }
 
-        public static async Task<HtmlDocument> DownloadHtmlDocument(string url, System.Text.Encoding encoding = null)
+        public static string DownloadHtmlString(string url)
+        {
+            string result = "";
+
+            WebRequest request = WebRequest.Create(url);
+            using (WebResponse response = request.GetResponse())
+            {
+                using (var streamReader = new StreamReader(response.GetResponseStream()))
+                {
+                    result = streamReader.ReadToEnd();
+                    response.Close();
+                }
+            }
+
+            return result;
+        }
+
+        public static async Task<HtmlDocument> DownloadHtmlDocumentAsync(string url, System.Text.Encoding encoding = null)
         {
             HtmlDocument doc = new HtmlDocument();
 
             WebRequest request = WebRequest.Create(url);
             using (WebResponse response = await request.GetResponseAsync())
+            {
+                doc.Load(response.GetResponseStream(), encoding == null ? System.Text.Encoding.UTF8 : encoding);
+                response.Close();
+            }
+
+            return doc;
+        }
+
+        public static HtmlDocument DownloadHtmlDocument(string url, System.Text.Encoding encoding = null)
+        {
+            HtmlDocument doc = new HtmlDocument();
+
+            WebRequest request = WebRequest.Create(url);
+            using (WebResponse response = request.GetResponse())
             {
                 doc.Load(response.GetResponseStream(), encoding == null ? System.Text.Encoding.UTF8 : encoding);
                 response.Close();

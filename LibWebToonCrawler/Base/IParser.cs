@@ -11,7 +11,7 @@ namespace LibWebToonCrawler.Base
 
 		int GetSleepSecond();
 
-		Task<List<T>> GetParsingList();
+		List<T> GetParsingList();
 	}
 
 	public enum SiteName

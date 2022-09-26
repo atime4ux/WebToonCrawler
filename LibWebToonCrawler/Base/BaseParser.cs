@@ -4,7 +4,7 @@ namespace LibWebToonCrawler.Base
 {
     public class BaseParser
 	{
-		protected Action<string> _FuncLog;
+		private Action<string> _FuncLog;
 		protected void FuncLog(string logMsg)
 		{
 			if (_FuncLog == null)
@@ -13,6 +13,17 @@ namespace LibWebToonCrawler.Base
 			}
 
 			_FuncLog(logMsg);
+		}
+
+		private Func<bool> _FuncGetRunningFlag;
+		protected bool FuncGetRunningFlag()
+		{
+			if (_FuncGetRunningFlag == null)
+			{
+				_FuncGetRunningFlag = () => false;
+			}
+
+			return _FuncGetRunningFlag();
 		}
 
 
@@ -63,9 +74,10 @@ namespace LibWebToonCrawler.Base
 			}
 		}
 
-		protected T Init<T>(T defaultConfig, Action<string> funcLog = null)
+		protected T Init<T>(T defaultConfig, Func<bool> funcGetRunningFlag, Action<string> funcLog = null)
 		{
 			_FuncLog = funcLog;
+			_FuncGetRunningFlag = funcGetRunningFlag;
 
 			T parsingConfig = LoadParsingConfig<T>();
 			if (parsingConfig == null)
