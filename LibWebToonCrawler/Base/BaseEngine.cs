@@ -51,7 +51,7 @@ namespace LibWebToonCrawler.Base
         protected void Init(Func<bool> getLoopFlag, BaseLog<T> logAction, List<IParser<T>> lstParsingModule)
         {
             GetLoopFlag = getLoopFlag ?? (() => { return false; });
-            LogAction = logAction ?? new BaseLog<T>(null, null, null);
+            LogAction = logAction ?? new BaseLog<T>(null, null, null, null);
             LstParsingModule = lstParsingModule;
         }
 

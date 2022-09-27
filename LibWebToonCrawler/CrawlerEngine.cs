@@ -27,7 +27,7 @@ namespace LibWebToonCrawler
 
             base.Init(getLoopFlag, logAction
                 , new List<IParser<CrawlingItem>>() {
-                    new Toonkor(LstCrawlingInfo.Where(x=> x.SiteName == "툰코").ToList(), GetLoopFlag, logAction.WriteStatus)
+                    new Toonkor(LstCrawlingInfo.Where(x=> x.SiteName == "툰코").ToList(), getLoopFlag, logAction.WriteStatus)
                     }
                 );
         }
@@ -66,12 +66,13 @@ namespace LibWebToonCrawler
             LogAction.WriteStatus("finish\r\n====================");
         }
 
-        private List<CrawlingItem> lstDownloadStatus = new List<CrawlingItem>();
         private void Download(List<CrawlingItem> lstAllItem)
         {
-            int maxAsyncJob = 10;
+            int limitAsyncJob = 20;
+            int maxAsyncJob = 1;
+            decimal maxMbSec = 0;
 
-            List<Task> lstTask = new List<Task>();
+            List<Task<decimal>> lstTask = new List<Task<decimal>>();
             foreach (string title in lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
             {
                 foreach (string number in lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
@@ -82,19 +83,37 @@ namespace LibWebToonCrawler
                         break;
                     }
 
-                    lstTask.Add(Task.Factory.StartNew(() =>
-                    {
-                        List<CrawlingItem> lstAsyncGroup = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList();
-
-                        LogAction.WriteStatus($"download async start : {lstAsyncGroup[0].ItemId}");
-                        DownloadNumberOfTitle(lstAsyncGroup, lstAllItem);
-                        LogAction.WriteStatus($"download async end : {lstAsyncGroup[0].ItemId}");
-                    }));
+                    lstTask.Add(DownloadNumberOfTitle(lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList(), lstAllItem));
 
                     if (lstTask.Count == maxAsyncJob)
                     {
-                        //최대 10개까지 비동기 작업
-                        Task.WaitAny(lstTask.ToArray());
+                        //최대 {maxAsyncJob}개까지 비동기 작업
+                        int taskIdx = Task.WaitAny(lstTask.ToArray());
+
+                        var completeTask = lstTask[taskIdx];
+                        
+                        decimal mbSec = completeTask.Result;
+                        LogAction.WriteDownloadSpeed($"{mbSec} MB/Sec");
+                        
+                        if (maxMbSec == 0 || (maxMbSec * 0.8M) <= mbSec)
+                        {
+                            maxMbSec = Math.Max(maxMbSec, mbSec);
+
+                            if (limitAsyncJob >= maxAsyncJob + 5)
+                            {
+                                //속도 감소가 없을때까지 다중 다운로드 증가
+                                maxAsyncJob += 5;
+                            }
+                        }
+                        else
+                        {
+                            //속도감소 -> 다운로드 감소
+                            if (maxAsyncJob > 2)
+                            {
+                                maxAsyncJob--;
+                            }
+                        }
+                        
                         lstTask.RemoveAll(x => x.IsCompleted);
                     }
                 }
@@ -103,12 +122,19 @@ namespace LibWebToonCrawler
             Task.WaitAll(lstTask.ToArray());
         }
 
-        private void DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
+        private async Task<decimal> DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
+            string itemId = "";
+            List<decimal> lstDownloadSpeed = new List<decimal>();
+
             try
             {
                 if (lstItem.Count > 0)
                 {
+                    itemId = lstItem[0].ItemId;
+
+                    LogAction.WriteStatus($"download async start : {itemId}");
+
                     string baseDir = $"{System.IO.Directory.GetCurrentDirectory()}\\download\\{lstItem[0].ItemTitle}";
 
                     Func<CrawlingItem, string> getDownlaodPath = (ci) =>
@@ -143,8 +169,35 @@ namespace LibWebToonCrawler
                         System.IO.Directory.Delete(srcPath, true);
                     };
 
+
+                    DateTime lastUpdate = DateTime.Now;
+                    long lastBytes = 0;
+                    Action<long> progressChanged = (bytes) =>
+                    {
+                        if (lastBytes == 0)
+                        {
+                            lastUpdate = DateTime.Now;
+                            lastBytes = bytes;
+                            return;
+                        }
+
+                        var now = DateTime.Now;
+                        var timeSpan = now - lastUpdate;
+                        if (timeSpan.Milliseconds > 0)
+                        {
+                            var bytesChange = bytes - lastBytes;
+                            lastBytes = bytes;
+                            lastUpdate = now;
+
+                            decimal mbSec = Math.Round(bytesChange / (decimal)Math.Pow(1024, 2) / (timeSpan.Milliseconds / 1000M), 2);
+                            lstDownloadSpeed.Add(mbSec);
+                        }
+                    };
+
+
                     using (var webClient = new System.Net.WebClient())
                     {
+                        webClient.DownloadProgressChanged += (sender, e) => progressChanged(e.BytesReceived);
                         webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.33 Safari/537.36");
 
                         int fileIdx = 0;
@@ -162,8 +215,7 @@ namespace LibWebToonCrawler
 
                             try
                             {
-                                //await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
-                                webClient.DownloadFile(item.ItemUrl, getImageFilePath(item, fileIdx));
+                                await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
                                 item.DownloadComplete = true;
 
                                 LogAction.WriteItem(lstAllItem);
@@ -188,12 +240,18 @@ namespace LibWebToonCrawler
                             }
                         }
                     }
+
+                    LogAction.WriteStatus($"download async end : {itemId}");
                 }
             }
             catch (Exception ex)
-            { }
+            {
+                LogAction.WriteStatus($"download async end : {itemId}");
+            }
             finally
             { }
+
+            return lstDownloadSpeed.Average();
         }
 
         public static List<CrawlingInfo> GetSampleCrawlingInfo()
@@ -224,7 +282,8 @@ namespace LibWebToonCrawler
     {
         public Logger(Action<string> writeStatus
             , Action<List<CrawlingItem>> writeItem
-            , Action<string> writeSleepStatus) : base(writeStatus, writeItem, writeSleepStatus)
+            , Action<string> writeSleepStatus
+            , Action<string> writeDownloadSpeed) : base(writeStatus, writeItem, writeSleepStatus, writeDownloadSpeed)
         { }
     }
 }

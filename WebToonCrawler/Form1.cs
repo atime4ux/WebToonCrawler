@@ -69,6 +69,8 @@ namespace WebToonCrawler
                 jsonCrawlingInfo = JsonConvert.SerializeObject(CrawlerEngine.GetSampleCrawlingInfo(), Formatting.Indented);
             }
             txtCrawlingInfoJson.Text = jsonCrawlingInfo;
+
+            lblDownloadSpeed.Text = "";
         }
 
 
@@ -115,6 +117,11 @@ namespace WebToonCrawler
             }
 
             FormHelper.SetTextBox(txtLog, status + "\r\n", "Y");
+        }
+
+        private void WriteDownloadSpeed(string str)
+        {
+            FormHelper.SetLabel(lblDownloadSpeed, str);
         }
 
         private void WriteItem(List<CrawlingItem> lstItem)
@@ -174,7 +181,7 @@ namespace WebToonCrawler
             CrawlerEngine crawlerEngine = new CrawlerEngine(
                     CrawlingInfoJson,
                     GetRunningFlag,
-                    new Logger(WriteStatus, WriteItem, WriteSleepStatus)
+                    new Logger(WriteStatus, WriteItem, WriteSleepStatus, WriteDownloadSpeed)
                     );
 
             mainTask = Task.Run(crawlerEngine.Run);

@@ -5,17 +5,20 @@ namespace LibWebToonCrawler.Base
 {
 	public class BaseLog<T>
 	{
-		public Action<string> WriteStatus { get; set; }
-		public Action<List<T>> WriteItem { get; set; }
-		public Action<string> WriteSleepStatus { get; set; }
-		
+		public Action<string> WriteStatus { get; }
+		public Action<List<T>> WriteItem { get; }
+		public Action<string> WriteSleepStatus { get; }
+		public Action<string> WriteDownloadSpeed { get; }
+
 		public BaseLog(Action<string> writeStatus
 			, Action<List<T>> writeItem
-			, Action<string> writeSleepStatus)
+			, Action<string> writeSleepStatus
+			, Action<string> writeDownloadSpeed)
 		{
-			WriteStatus = writeStatus != null ? writeStatus : (x => { });
-			WriteItem = writeItem != null ? writeItem : (x => { });
-			WriteSleepStatus = writeSleepStatus != null ? writeSleepStatus : (x => { });
+			WriteStatus = writeStatus ?? (x => { });
+			WriteItem = writeItem ?? (x => { });
+			WriteSleepStatus = writeSleepStatus ?? (x => { });
+			WriteDownloadSpeed = writeDownloadSpeed ?? (x => { });
 		}
 	}
 }
