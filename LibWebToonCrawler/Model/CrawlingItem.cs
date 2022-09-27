@@ -25,6 +25,7 @@
             }
         }
 
-        public bool DownloadComplete { get; set; }
+        public bool DownloadSuccess { get; set; }
+        public bool DownloadFail { get; set; }
     }
 }

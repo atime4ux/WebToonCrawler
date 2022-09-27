@@ -73,9 +73,12 @@ namespace LibWebToonCrawler
             double avgByteSec = 0;
 
             List<Task<double>> lstTask = new List<Task<double>>();
-            foreach (string title in lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
+
+            List<string> lstTitle = lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key).ToList();
+            foreach (string title in lstTitle)
             {
-                foreach (string number in lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
+                List<string> lstItemNumber = lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key).ToList();
+                foreach (string itemNumber in lstItemNumber)
                 {
                     //제목, 회차별 비동기 다운로드
                     if (GetLoopFlag() == false)
@@ -83,7 +86,8 @@ namespace LibWebToonCrawler
                         break;
                     }
 
-                    lstTask.Add(DownloadNumberOfTitle(lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == number).ToList(), lstAllItem));
+                    List<CrawlingItem> lstNumberOfTitle = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == itemNumber).ToList();
+                    lstTask.Add(DownloadNumberOfTitle(lstNumberOfTitle, lstAllItem));
 
                     if (lstTask.Count == maxAsyncJob)
                     {
@@ -138,9 +142,9 @@ namespace LibWebToonCrawler
 
                     string baseDir = $"{System.IO.Directory.GetCurrentDirectory()}\\download\\{lstItem[0].ItemTitle}";
 
-                    Func<CrawlingItem, string> getDownlaodPath = (ci) =>
+                    Func<string, string> getDownlaodPath = (id) =>
                     {
-                        string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(ci.ItemId)}";
+                        string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}";
                         if (System.IO.Directory.Exists(path) == false)
                         {
                             System.IO.Directory.CreateDirectory(path);
@@ -151,18 +155,18 @@ namespace LibWebToonCrawler
 
                     Func<CrawlingItem, int, string> getImageFilePath = (ci, i) =>
                     {
-                        string path = getDownlaodPath(ci);
+                        string path = getDownlaodPath(ci.ItemId);
                         string ext = System.IO.Path.GetExtension(ci.ItemUrl).Replace(".", "");
                         string fileName = $"{(i + 1).ToString().PadLeft(5, '0')}.{ext}";
 
                         return $"{path}\\{fileName}";
                     };
 
-                    Action<CrawlingItem> zipImg = (ci) =>
+                    Action<string> zipImg = (id) =>
                     {
                         //압축
-                        string srcPath = getDownlaodPath(ci);
-                        string destPath = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(ci.ItemId)}.zip";
+                        string srcPath = getDownlaodPath(id);
+                        string destPath = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}.zip";
 
                         ZipFile.CreateFromDirectory(srcPath, destPath);
 
@@ -171,6 +175,7 @@ namespace LibWebToonCrawler
                     };
 
 
+                    string objLock = "";
                     DateTime lastByteReceiveTime = DateTime.Now;
                     long lastBytes = 0;
 
@@ -187,7 +192,11 @@ namespace LibWebToonCrawler
                                 lastByteReceiveTime = now;
 
                                 double byteSec = Math.Ceiling(bytesChange / (timeSpan.Milliseconds / 1000.0));
-                                lstDownloadSpeed.Add(byteSec);
+
+                                lock (objLock)
+                                {
+                                    lstDownloadSpeed.Add(byteSec);
+                                }
                             }
                         }
                     };
@@ -208,36 +217,33 @@ namespace LibWebToonCrawler
 
                             if (fileIdx == 0)
                             {
-                                LogAction.WriteStatus($"download img start : {item.ItemId}");
+                                LogAction.WriteStatus($"download img start : {itemId}");
                             }
 
                             try
                             {
                                 lastByteReceiveTime = DateTime.Now;
+                                lastBytes = 0;
                                 await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
-                                item.DownloadComplete = true;
-
-                                LogAction.WriteItem(lstAllItem);
+                                item.DownloadSuccess = true;
                             }
                             catch (Exception ex)
                             {
-                                LogAction.WriteStatus($"download img error : {item.ItemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
+                                LogAction.WriteStatus($"download img error : {itemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
+                                item.DownloadFail = true;
                             }
+                            
+                            LogAction.WriteItem(lstAllItem);
 
-                            if (item == lstItem.Last())
-                            {
-                                //마지막 or 다음 항목과 다른 경우 압축 후 삭제
-                                zipImg(item);
-                                LogAction.WriteStatus($"download img end : {item.ItemId}");
-
-                                //마커 초기화
-                                fileIdx = 0;
-                            }
-                            else
-                            {
-                                fileIdx++;
-                            }
+                            fileIdx++;
                         }
+
+                        if (lstItem.All(x=> x.DownloadSuccess == true))
+                        {
+                            //오류 없을때만 압축 후 기존 파일 삭제
+                            zipImg(itemId);
+                        }
+                        LogAction.WriteStatus($"download img end : {itemId}");
                     }
 
                     LogAction.WriteStatus($"download async end : {itemId}");

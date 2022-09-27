@@ -131,12 +131,33 @@ namespace WebToonCrawler
                 {
                     x.Key.ItemTitle,
                     x.Key.ItemNumber,
-                    TotanCnt = x.Count(),
-                    CompleteCnt = x.Count(g => g.DownloadComplete == true)
-                }).Where(x => x.CompleteCnt != x.TotanCnt)
-                .OrderByDescending(x => x.CompleteCnt > 0 ? 1 : 0)
-                .ThenBy(x => x.ItemTitle).ThenBy(x => x.ItemNumber)
-                .Select(x => $"{x.ItemTitle} - {x.ItemNumber} : {x.CompleteCnt}/{x.TotanCnt}");
+                    TotalCnt = x.Count(),
+                    SuccessCnt = x.Count(g => g.DownloadSuccess == true),
+                    FailCnt = x.Count(g => g.DownloadFail == true)
+                }).Where(x => x.SuccessCnt != x.TotalCnt)
+                .OrderByDescending(x => {
+                    if (x.SuccessCnt > 0)
+                    {
+                        if ((x.SuccessCnt + x.FailCnt) != x.TotalCnt)
+                        {
+                            //진행중
+                            return 2;
+                        }
+                        else
+                        {
+                            //완료(실패존재)
+                            return 0;
+                        }
+                    }
+                    else
+                    {
+                        //미진행
+                        return 1;
+                    }
+                })
+                .ThenBy(x => x.ItemTitle)
+                .ThenBy(x => x.ItemNumber)
+                .Select(x => $"{x.ItemTitle} - {x.ItemNumber} : {x.SuccessCnt}/{x.TotalCnt}{(x.FailCnt > 0 ? $"(Fail:{x.FailCnt})" : "")}");
 
             FormHelper.SetTextBox(txtItemList, string.Join("\r\n", itemStatus), "N");
         }
