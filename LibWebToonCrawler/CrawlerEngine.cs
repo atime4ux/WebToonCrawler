@@ -70,9 +70,9 @@ namespace LibWebToonCrawler
         {
             int limitAsyncJob = 20;
             int maxAsyncJob = 1;
-            decimal maxMbSec = 0;
+            double avgByteSec = 0;
 
-            List<Task<decimal>> lstTask = new List<Task<decimal>>();
+            List<Task<double>> lstTask = new List<Task<double>>();
             foreach (string title in lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key))
             {
                 foreach (string number in lstAllItem.Where(x => x.ItemTitle == title).GroupBy(x => x.ItemNumber).Select(x => x.Key))
@@ -91,14 +91,10 @@ namespace LibWebToonCrawler
                         int taskIdx = Task.WaitAny(lstTask.ToArray());
 
                         var completeTask = lstTask[taskIdx];
-                        
-                        decimal mbSec = completeTask.Result;
-                        LogAction.WriteDownloadSpeed($"{mbSec} MB/Sec");
-                        
-                        if (maxMbSec == 0 || (maxMbSec * 0.8M) <= mbSec)
-                        {
-                            maxMbSec = Math.Max(maxMbSec, mbSec);
 
+                        double byteSec = completeTask.Result;                        
+                        if (avgByteSec == 0 || (avgByteSec * 0.8) <= byteSec)
+                        {
                             if (limitAsyncJob >= maxAsyncJob + 5)
                             {
                                 //속도 감소가 없을때까지 다중 다운로드 증가
@@ -113,7 +109,12 @@ namespace LibWebToonCrawler
                                 maxAsyncJob--;
                             }
                         }
-                        
+
+                        avgByteSec = new double[] { avgByteSec, byteSec }.Average();
+
+                        double avgMbSec = Math.Round(avgByteSec / (double)Math.Pow(1024, 2), 2);
+                        LogAction.WriteDownloadSpeed($"{avgMbSec} MB/Sec");
+
                         lstTask.RemoveAll(x => x.IsCompleted);
                     }
                 }
@@ -122,10 +123,10 @@ namespace LibWebToonCrawler
             Task.WaitAll(lstTask.ToArray());
         }
 
-        private async Task<decimal> DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
+        private async Task<double> DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
             string itemId = "";
-            List<decimal> lstDownloadSpeed = new List<decimal>();
+            List<double> lstDownloadSpeed = new List<double>();
 
             try
             {
@@ -170,27 +171,24 @@ namespace LibWebToonCrawler
                     };
 
 
-                    DateTime lastUpdate = DateTime.Now;
+                    DateTime lastByteReceiveTime = DateTime.Now;
                     long lastBytes = 0;
+
                     Action<long> progressChanged = (bytes) =>
                     {
-                        if (lastBytes == 0)
+                        if (lastBytes != bytes)
                         {
-                            lastUpdate = DateTime.Now;
-                            lastBytes = bytes;
-                            return;
-                        }
+                            var now = DateTime.Now;
+                            var timeSpan = now - lastByteReceiveTime;
+                            if (timeSpan.Milliseconds > 0)
+                            {
+                                var bytesChange = bytes - lastBytes;
+                                lastBytes = bytes;
+                                lastByteReceiveTime = now;
 
-                        var now = DateTime.Now;
-                        var timeSpan = now - lastUpdate;
-                        if (timeSpan.Milliseconds > 0)
-                        {
-                            var bytesChange = bytes - lastBytes;
-                            lastBytes = bytes;
-                            lastUpdate = now;
-
-                            decimal mbSec = Math.Round(bytesChange / (decimal)Math.Pow(1024, 2) / (timeSpan.Milliseconds / 1000M), 2);
-                            lstDownloadSpeed.Add(mbSec);
+                                double byteSec = Math.Ceiling(bytesChange / (timeSpan.Milliseconds / 1000.0));
+                                lstDownloadSpeed.Add(byteSec);
+                            }
                         }
                     };
 
@@ -215,6 +213,7 @@ namespace LibWebToonCrawler
 
                             try
                             {
+                                lastByteReceiveTime = DateTime.Now;
                                 await webClient.DownloadFileTaskAsync(item.ItemUrl, getImageFilePath(item, fileIdx));
                                 item.DownloadComplete = true;
 
