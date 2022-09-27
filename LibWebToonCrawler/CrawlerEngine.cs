@@ -69,7 +69,7 @@ namespace LibWebToonCrawler
         private void Download(List<CrawlingItem> lstAllItem)
         {
             int limitAsyncJob = 20;
-            int maxAsyncJob = 1;
+            int maxAsyncJob = 5;
             double avgByteSec = 0;
 
             List<Task<double>> lstTask = new List<Task<double>>();
