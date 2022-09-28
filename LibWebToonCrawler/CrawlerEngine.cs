@@ -77,35 +77,39 @@ namespace LibWebToonCrawler
             Action<int> funcTaskComplete = (i) => {
                 var completeTask = lstTask[i];
                 double byteSec = completeTask.Result;
-                if (avgByteSec <= byteSec)
+
+                if (byteSec > 0)
                 {
-                    if (limitAsyncJob > maxAsyncJob)
+                    if (avgByteSec <= byteSec)
                     {
-                        if (limitAsyncJob >= maxAsyncJob + jobIncreaseStep)
+                        if (limitAsyncJob > maxAsyncJob)
                         {
-                            //속도 감소가 없을때까지 다중 다운로드 증가
-                            maxAsyncJob += jobIncreaseStep;
-                        }
-                        else
-                        {
-                            maxAsyncJob = limitAsyncJob;
+                            if (limitAsyncJob >= maxAsyncJob + jobIncreaseStep)
+                            {
+                                //속도 감소가 없을때까지 다중 다운로드 증가
+                                maxAsyncJob += jobIncreaseStep;
+                            }
+                            else
+                            {
+                                maxAsyncJob = limitAsyncJob;
+                            }
                         }
                     }
-                }
-                else
-                {
-                    //속도감소 -> 다운로드 감소
-                    if (maxAsyncJob > 2)
+                    else
                     {
-                        maxAsyncJob--;
+                        //속도감소 -> 다운로드 감소
+                        if (maxAsyncJob > 2)
+                        {
+                            maxAsyncJob--;
+                        }
+                        jobIncreaseStep = 1;
                     }
-                    jobIncreaseStep = 1;
+
+                    avgByteSec = avgByteSec == 0 ? byteSec : new double[] { avgByteSec, byteSec }.Average();
+
+                    double avgKbSec = Math.Round(avgByteSec / 1024.0, 2);
+                    LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec - {maxAsyncJob} thread running");
                 }
-
-                avgByteSec = avgByteSec == 0 ? byteSec : new double[] { avgByteSec, byteSec }.Average();
-
-                double avgKbSec = Math.Round(avgByteSec / 1024.0, 2);
-                LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec - {maxAsyncJob} thread running");
 
                 lstTask.RemoveAll(x => x.IsCompleted);
             };
@@ -148,100 +152,142 @@ namespace LibWebToonCrawler
             }
         }
 
+        /// <summary>
+        /// 이미 존재하는 파일 스킵, zip파일 있는 경우 0 반환
+        /// </summary>
+        /// <param name="lstItem"></param>
+        /// <param name="lstAllItem"></param>
+        /// <returns></returns>
         private async Task<double> DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
             string itemId = "";
             double totalByteSec = 0;
+            long[] arrFileSize = new long[lstItem.Count];
+            double downloadTotalSec = 0;
 
             try
             {
-                if (lstItem.Count > 0)
+                itemId = lstItem[0].ItemId;
+
+                string baseDir = $"{System.IO.Directory.GetCurrentDirectory()}\\download\\{lstItem[0].ItemTitle}";
+                Func<string, string> getDownlaodPath = (id) =>
                 {
-                    itemId = lstItem[0].ItemId;
-
-                    string baseDir = $"{System.IO.Directory.GetCurrentDirectory()}\\download\\{lstItem[0].ItemTitle}";
-                    Func<string, string> getDownlaodPath = (id) =>
+                    string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}";
+                    if (System.IO.Directory.Exists(path) == false)
                     {
-                        string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}";
-                        if (System.IO.Directory.Exists(path) == false)
-                        {
-                            System.IO.Directory.CreateDirectory(path);
-                        }
+                        System.IO.Directory.CreateDirectory(path);
+                    }
 
-                        return path;
-                    };
+                    return path;
+                };
 
-                    Func<CrawlingItem, int, string> getImageFilePath = (ci, i) =>
-                    {
-                        string path = getDownlaodPath(ci.ItemId);
-                        string ext = System.IO.Path.GetExtension(ci.ItemUrl).Replace(".", "");
-                        string fileName = $"{(i + 1).ToString().PadLeft(5, '0')}.{ext}";
+                Func<CrawlingItem, int, string> getImageFilePath = (ci, i) =>
+                {
+                    string path = getDownlaodPath(ci.ItemId);
+                    string ext = System.IO.Path.GetExtension(ci.ItemUrl).Replace(".", "");
+                    string fileName = $"{(i + 1).ToString().PadLeft(5, '0')}.{ext}";
 
-                        return $"{path}\\{fileName}";
-                    };
+                    return $"{path}\\{fileName}";
+                };
 
-                    Action<string> zipImg = (id) =>
-                    {
+                Func<string, string> getZipFilePath = (id) =>
+                {
+                    return $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}.zip";
+                };
+
+                Action<string> zipImg = (id) =>
+                {
                         //압축
                         string srcPath = getDownlaodPath(id);
-                        string destPath = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}.zip";
+                    string destPath = getZipFilePath(id);
 
-                        ZipFile.CreateFromDirectory(srcPath, destPath);
+                    ZipFile.CreateFromDirectory(srcPath, destPath);
 
                         //압축 후 삭제
                         System.IO.Directory.Delete(srcPath, true);
-                    };
+                };
 
-                    long[] arrFileSize = new long[lstItem.Count];
-                    DateTime startDatetime = DateTime.Now;
-                    using (var webClient = new System.Net.WebClient())
+
+                if (new System.IO.FileInfo(getZipFilePath(itemId)).Exists == false)
+                {
+                    LogAction.WriteStatus($"download img start : {itemId}");
+
+                    int fileIdx = 0;
+                    foreach (var item in lstItem)
                     {
-                        LogAction.WriteStatus($"download img start : {itemId}");
-
-                        webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.33 Safari/537.36");
-
-                        int fileIdx = 0;
-                        foreach (var item in lstItem)
+                        if (GetLoopFlag() == false)
                         {
-                            if (GetLoopFlag() == false)
+                            break;
+                        }
+
+                        long fileSize;
+                        try
+                        {
+                            bool downloadFlag = true;
+
+                            string imageFilePath = getImageFilePath(item, fileIdx);
+                            var imageFileInfo = new System.IO.FileInfo(imageFilePath);
+                            if (imageFileInfo.Exists && imageFileInfo.Length > 0)
                             {
-                                break;
+                                //using (var webClient = new System.Net.WebClient())
+                                //{
+                                //    webClient.OpenRead(item.ItemUrl);
+                                //    fileSize = Convert.ToInt64(webClient.ResponseHeaders["Content-Length"]);
+                                //    if (fileSize == imageFileInfo.Length)
+                                //    {
+                                downloadFlag = false;
+                                //    }
+                                //}
                             }
 
-                            long fileSize;
-                            try
+                            if (downloadFlag == true)
                             {
-                                string filePath = getImageFilePath(item, fileIdx);
-                                await webClient.DownloadFileTaskAsync(item.ItemUrl, filePath);
-                                fileSize = new System.IO.FileInfo(filePath).Length;
+                                using (var webClient = new System.Net.WebClient())
+                                {
+                                    webClient.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.33 Safari/537.36");
+
+                                    DateTime startDatetime = DateTime.Now;
+                                    await webClient.DownloadFileTaskAsync(item.ItemUrl, imageFilePath);
+                                    DateTime endDatetime = DateTime.Now;
+
+                                    downloadTotalSec += (endDatetime - startDatetime).TotalMilliseconds / 1000.0;
+
+                                    imageFileInfo.Refresh();
+                                    fileSize = imageFileInfo.Length;
+                                    arrFileSize[fileIdx] = fileSize;
+
+                                    item.DownloadSuccess = true;
+                                }
+                            }
+                            else
+                            {
                                 item.DownloadSuccess = true;
                             }
-                            catch (Exception ex)
-                            {
-                                LogAction.WriteStatus($"download img error : {itemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
-                                fileSize = 0;
-                                item.DownloadFail = true;
-                            }
-
-                            arrFileSize[fileIdx] = fileSize;
-
-
-                            LogAction.WriteItem(lstAllItem);
-
-                            fileIdx++;
                         }
-
-                        if (lstItem.All(x=> x.DownloadSuccess == true))
+                        catch (Exception ex)
                         {
-                            //오류 없을때만 압축 후 기존 파일 삭제
-                            zipImg(itemId);
+                            LogAction.WriteStatus($"download img error : {itemId} - {fileIdx + 1} - {item.ItemUrl}\r\n{ex.Message}");
+                            fileSize = 0;
+                            item.DownloadFail = true;
                         }
 
-                        LogAction.WriteStatus($"download img end : {itemId}");
-                    }
-                    DateTime endDatetime = DateTime.Now;
+                        LogAction.WriteItem(lstAllItem);
 
-                    totalByteSec = arrFileSize.Sum() / ((endDatetime - startDatetime).TotalMilliseconds / 1000.0);
+                        fileIdx++;
+                    }
+
+                    if (lstItem.All(x => x.DownloadSuccess == true))
+                    {
+                        //오류 없을때만 압축 후 기존 파일 삭제
+                        zipImg(itemId);
+                    }
+
+                    LogAction.WriteStatus($"download img end : {itemId}");
+                }
+                else
+                {
+                    lstItem.ForEach(x => x.DownloadSuccess = true);
+                    LogAction.WriteStatus($"skip download : {itemId}");
                 }
             }
             catch (Exception ex)
@@ -250,6 +296,11 @@ namespace LibWebToonCrawler
             }
             finally
             { }
+
+            if (downloadTotalSec > 0)
+            {
+                totalByteSec = arrFileSize.Sum() / downloadTotalSec;
+            }
 
             return totalByteSec;
         }
