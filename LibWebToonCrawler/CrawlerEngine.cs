@@ -72,8 +72,43 @@ namespace LibWebToonCrawler
             int maxAsyncJob = 3;
             double avgByteSec = 0;
             int jobIncreaseStep = 5;
-
             List<Task<double>> lstTask = new List<Task<double>>();
+
+            Action<int> funcTaskComplete = (i) => {
+                var completeTask = lstTask[i];
+                double byteSec = completeTask.Result;
+                if (avgByteSec <= byteSec)
+                {
+                    if (limitAsyncJob > maxAsyncJob)
+                    {
+                        if (limitAsyncJob >= maxAsyncJob + jobIncreaseStep)
+                        {
+                            //속도 감소가 없을때까지 다중 다운로드 증가
+                            maxAsyncJob += jobIncreaseStep;
+                        }
+                        else
+                        {
+                            maxAsyncJob = limitAsyncJob;
+                        }
+                    }
+                }
+                else
+                {
+                    //속도감소 -> 다운로드 감소
+                    if (maxAsyncJob > 2)
+                    {
+                        maxAsyncJob--;
+                    }
+                    jobIncreaseStep = 1;
+                }
+
+                avgByteSec = avgByteSec == 0 ? byteSec : new double[] { avgByteSec, byteSec }.Average();
+
+                double avgKbSec = Math.Round(avgByteSec / 1024.0, 2);
+                LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec - {maxAsyncJob} thread running");
+
+                lstTask.RemoveAll(x => x.IsCompleted);
+            };
 
             List<string> lstTitle = lstAllItem.GroupBy(x => x.ItemTitle).Select(x => x.Key).ToList();
             foreach (string title in lstTitle)
@@ -90,10 +125,10 @@ namespace LibWebToonCrawler
                     List<CrawlingItem> lstNumberOfTitle = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == itemNumber).ToList();
 
                     //task 개수 맞춰질때까지 대기
-                    while(lstTask.Count > maxAsyncJob)
+                    while(lstTask.Count >= maxAsyncJob)
                     {
-                        Task.WaitAny(lstTask.ToArray());
-                        lstTask.RemoveAll(x => x.IsCompleted);
+                        int taskIdx = Task.WaitAny(lstTask.ToArray());
+                        funcTaskComplete(taskIdx);
                     }
                     lstTask.Add(DownloadNumberOfTitle(lstNumberOfTitle, lstAllItem));
 
@@ -102,41 +137,7 @@ namespace LibWebToonCrawler
                     {
                         //최대 {maxAsyncJob}개까지 비동기 작업
                         int taskIdx = Task.WaitAny(lstTask.ToArray());
-
-                        var completeTask = lstTask[taskIdx];
-
-                        double byteSec = completeTask.Result;                        
-                        if (avgByteSec <= byteSec)
-                        {
-                            if (limitAsyncJob > maxAsyncJob)
-                            {
-                                if (limitAsyncJob >= maxAsyncJob + jobIncreaseStep)
-                                {
-                                    //속도 감소가 없을때까지 다중 다운로드 증가
-                                    maxAsyncJob += jobIncreaseStep;
-                                }
-                                else
-                                {
-                                    maxAsyncJob = limitAsyncJob;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            //속도감소 -> 다운로드 감소
-                            if (maxAsyncJob > 2)
-                            {
-                                maxAsyncJob--;
-                            }
-                            jobIncreaseStep = 1;
-                        }
-
-                        avgByteSec = avgByteSec == 0 ? byteSec : new double[] { avgByteSec, byteSec }.Average();
-
-                        double avgKbSec = Math.Round(avgByteSec / 1024.0, 2);
-                        LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec - {maxAsyncJob} thread running");
-
-                        lstTask.RemoveAll(x => x.IsCompleted);
+                        funcTaskComplete(taskIdx);
                     }
                 }
             }
