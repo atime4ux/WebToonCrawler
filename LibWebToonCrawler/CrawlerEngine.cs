@@ -50,11 +50,11 @@ namespace LibWebToonCrawler
                     var parsing = LstParsingModule.FirstOrDefault(x => x.GetParsingTarget() == siteName);
                     if (parsing != null)
                     {
-                        LogAction.WriteStatus($"downloading [{info.SiteName}] data");
+                        LogAction.WriteStatus($"downloading [{siteName}] data");
 
                         List<CrawlingItem> lstItem = parsing.GetParsingList();
 
-                        LogAction.WriteStatus($"{parsing.GetParsingTarget()} : success get {lstItem.Count} items");
+                        LogAction.WriteStatus($"{siteName} : success get {lstItem.Count} items");
                         LogAction.WriteItem(lstItem);
 
                         //다운로드 처리
@@ -134,7 +134,7 @@ namespace LibWebToonCrawler
                         int taskIdx = Task.WaitAny(lstTask.ToArray());
                         funcTaskComplete(taskIdx);
                     }
-                    lstTask.Add(DownloadNumberOfTitle(lstNumberOfTitle, lstAllItem));
+                    lstTask.Add(DownloadNumberOfTitleImg(lstNumberOfTitle, lstAllItem));
 
 
                     if (lstTask.Count == maxAsyncJob)
@@ -158,12 +158,12 @@ namespace LibWebToonCrawler
         /// <param name="lstItem"></param>
         /// <param name="lstAllItem"></param>
         /// <returns></returns>
-        private async Task<double> DownloadNumberOfTitle(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
+        private async Task<double> DownloadNumberOfTitleImg(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
             string itemId = "";
             double totalByteSec = 0;
-            long[] arrFileSize = new long[lstItem.Count];
-            double downloadTotalSec = 0;
+            long totalFileSize = 0;
+            double totalDownloadSec = 0;
 
             try
             {
@@ -250,11 +250,11 @@ namespace LibWebToonCrawler
                                     await webClient.DownloadFileTaskAsync(item.ItemUrl, imageFilePath);
                                     DateTime endDatetime = DateTime.Now;
 
-                                    downloadTotalSec += (endDatetime - startDatetime).TotalMilliseconds / 1000.0;
-
                                     imageFileInfo.Refresh();
                                     fileSize = imageFileInfo.Length;
-                                    arrFileSize[fileIdx] = fileSize;
+                                    
+                                    totalFileSize += fileSize;
+                                    totalDownloadSec += (endDatetime - startDatetime).TotalMilliseconds / 1000.0;
 
                                     item.DownloadSuccess = true;
                                 }
@@ -297,9 +297,9 @@ namespace LibWebToonCrawler
             finally
             { }
 
-            if (downloadTotalSec > 0)
+            if (totalDownloadSec > 0)
             {
-                totalByteSec = arrFileSize.Sum() / downloadTotalSec;
+                totalByteSec = totalFileSize / totalDownloadSec;
             }
 
             return totalByteSec;

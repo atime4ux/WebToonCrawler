@@ -33,13 +33,6 @@ namespace LibWebToonCrawler.Base
 		protected DateTime LastRunDate { get; set; }
 
 		protected SiteName _ParsingTarget { get; set; }
-		public SiteName ParsingTarget
-		{
-			get
-			{
-				return _ParsingTarget;
-			}
-		}
 
 		protected int SleepSecond { get; set; }
 
@@ -49,7 +42,7 @@ namespace LibWebToonCrawler.Base
 		{
 			get
 			{
-				return $"{ParsingTarget}.config";
+				return $"{_ParsingTarget}.config";
 			}
 		}
 
@@ -98,7 +91,7 @@ namespace LibWebToonCrawler.Base
 
 		public SiteName GetParsingTarget()
 		{
-			return ParsingTarget;
+			return _ParsingTarget;
 		}
 
 		public void SetSleepSecond(int sec)

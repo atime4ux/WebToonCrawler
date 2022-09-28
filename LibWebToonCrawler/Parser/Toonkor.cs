@@ -142,7 +142,7 @@ namespace LibWebToonCrawler.Parser
 
 
             var lstItem = new List<CrawlingItem>();
-            HtmlDocument domData = getPageData(pageUrl);
+            HtmlDocument domData = getPageData(pageUrl)
             if (domData != null)
             {
                 foreach (var img in domData.DocumentNode.ChildNodes)
@@ -259,6 +259,9 @@ namespace LibWebToonCrawler.Parser
             base.IsBlocked = false;
 
             var result = new List<CrawlingItem>();
+            string strLock = "";
+            var lstTask = new List<Task>();
+            int asyncJobCnt = 8;
 
             foreach (var curCrawlingInfo in lstToonkorCrawlingInfo)
             {
@@ -299,18 +302,29 @@ namespace LibWebToonCrawler.Parser
                                 string path = page.Value;
                                 string url = GetPageUrl(curCrawlingInfo.Title, path);
 
+                                while(lstTask.Count >= asyncJobCnt)
+                                {
+                                    Task.WaitAny(lstTask.ToArray());
+                                    lstTask.RemoveAll(x => x.IsCompleted);
+                                }
+
                                 FuncLog($"{curCrawlingInfo.Title} - downloading page {pageName}");
 
-
-                                List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, pageName);
-                                if (lstItem.Count == 0)
+                                lstTask.Add(Task.Run(() =>
                                 {
-                                    FuncLog($"{curCrawlingInfo.Title} - {curIndex} - empty");
-                                }
-                                else
-                                {
-                                    result.AddRange(lstItem);
-                                }
+                                    List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, pageName);
+                                    if (lstItem.Count == 0)
+                                    {
+                                        FuncLog($"{curCrawlingInfo.Title} - {curIndex} - empty");
+                                    }
+                                    else
+                                    {
+                                        lock (strLock)
+                                        {
+                                            result.AddRange(lstItem);
+                                        }
+                                    }
+                                }));
 
                                 curIndex++;
                             }
@@ -321,6 +335,11 @@ namespace LibWebToonCrawler.Parser
                         FuncLog($"{curCrawlingInfo.Title} - invalid index");
                     }
                 }
+            }
+
+            if (lstTask.Any(x => x.IsCompleted == false))
+            {
+                Task.WaitAll(lstTask.ToArray());
             }
 
             return result;
