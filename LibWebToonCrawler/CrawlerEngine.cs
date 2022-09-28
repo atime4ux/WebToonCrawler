@@ -134,7 +134,7 @@ namespace LibWebToonCrawler
                         avgByteSec = avgByteSec == 0 ? byteSec : new double[] { avgByteSec, byteSec }.Average();
 
                         double avgKbSec = Math.Round(avgByteSec / 1024.0, 2);
-                        LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec");
+                        LogAction.WriteDownloadSpeed($"{avgKbSec} KB/Sec - {maxAsyncJob} thread running");
 
                         lstTask.RemoveAll(x => x.IsCompleted);
                     }
