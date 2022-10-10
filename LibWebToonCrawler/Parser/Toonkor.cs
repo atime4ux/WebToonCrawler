@@ -142,7 +142,7 @@ namespace LibWebToonCrawler.Parser
 
 
             var lstItem = new List<CrawlingItem>();
-            HtmlDocument domData = getPageData(pageUrl)
+            HtmlDocument domData = getPageData(pageUrl);
             if (domData != null)
             {
                 foreach (var img in domData.DocumentNode.ChildNodes)
