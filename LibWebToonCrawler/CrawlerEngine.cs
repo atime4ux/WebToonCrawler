@@ -164,6 +164,7 @@ namespace LibWebToonCrawler
             double totalByteSec = 0;
             long totalFileSize = 0;
             double totalDownloadSec = 0;
+            string[] arrImgExt = new string[] { "jpg", "bmp", "gif", "png" };
 
             try
             {
@@ -185,6 +186,10 @@ namespace LibWebToonCrawler
                 {
                     string path = getDownlaodPath(ci.ItemId);
                     string ext = System.IO.Path.GetExtension(ci.ItemUrl).Replace(".", "");
+                    if (arrImgExt.Contains(ext.ToLower()) == false)
+                    {
+                        ext = arrImgExt[0];
+                    }
                     string fileName = $"{(i + 1).ToString().PadLeft(5, '0')}.{ext}";
 
                     return $"{path}\\{fileName}";
