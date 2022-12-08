@@ -298,7 +298,7 @@ namespace LibWebToonCrawler.Parser
                                     break;
                                 }
 
-                                string pageName = page.Key;
+                                string indexTitle = $"{curIndex.ToString().PadLeft(4, '0')}.{page.Key}";
                                 string path = page.Value;
                                 string url = GetPageUrl(curCrawlingInfo.Title, path);
 
@@ -308,11 +308,11 @@ namespace LibWebToonCrawler.Parser
                                     lstTask.RemoveAll(x => x.IsCompleted);
                                 }
 
-                                FuncLog($"{curCrawlingInfo.Title} - downloading page {pageName}");
+                                FuncLog($"{curCrawlingInfo.Title} - downloading page {indexTitle}");
 
                                 lstTask.Add(Task.Run(() =>
                                 {
-                                    List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, pageName);
+                                    List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, indexTitle);
                                     if (lstItem.Count == 0)
                                     {
                                         FuncLog($"{curCrawlingInfo.Title} - {curIndex} - empty");
