@@ -318,16 +318,14 @@ namespace LibWebToonCrawler
                 SiteName = "툰코",
                 Title = "제목1",
                 IndexUrl = "https://abc.com/def",
-                StartIdx = 1,
-                EndIdx = 10
+                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" }
             });
             sample.Add(new CrawlingInfo()
             {
                 SiteName = "툰코",
                 Title = "제목2",
                 IndexUrl = "https://abc.com/def2",
-                StartIdx = 1,
-                EndIdx = 10
+                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" }
             });
 
             return sample;

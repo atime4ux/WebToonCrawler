@@ -241,7 +241,7 @@ namespace LibWebToonCrawler.Parser
                 {
                     FuncLog("can't run - blocked");
                 }
-                else if (crawlingInfo.StartIdx < 0 || crawlingInfo.EndIdx < 0 || (crawlingInfo.EndIdx != 0 && crawlingInfo.StartIdx > crawlingInfo.EndIdx))
+                else if (crawlingInfo.GetIndex().Length == 0)
                 {
                     FuncLog("can't run - invalid idx");
                 }
@@ -275,58 +275,51 @@ namespace LibWebToonCrawler.Parser
                     base.LastRunDate = DateTime.Now;
 
                     //전체 목차 다운로드
-                    Dictionary<string, string> dicIndex = GetWebToonIndex(curCrawlingInfo.IndexUrl);
-                    if (dicIndex.Count > 0)
+                    Dictionary<string, string> dicIndexPath = GetWebToonIndex(curCrawlingInfo.IndexUrl);
+                    if (dicIndexPath.Count > 0)
                     {
-                        if (curCrawlingInfo.StartIdx < 1)
+                        if (curCrawlingInfo.GetIndex().Length > 0)
                         {
-                            curCrawlingInfo.StartIdx = 1;
-                        }
-
-                        if (curCrawlingInfo.EndIdx == 0 || curCrawlingInfo.EndIdx > dicIndex.Count)
-                        {
-                            curCrawlingInfo.EndIdx = dicIndex.Count;
-                        }
-
-                        if (curCrawlingInfo.StartIdx <= curCrawlingInfo.EndIdx)
-                        {
-                            int curIndex = curCrawlingInfo.StartIdx;
-                            foreach (var page in dicIndex.Skip(curCrawlingInfo.StartIdx - 1).Take(curCrawlingInfo.EndIdx - curCrawlingInfo.StartIdx + 1))
+                            foreach (var indexPath in dicIndexPath.Select((x, i) => new { page = x, index = i + 1 }))
                             {
                                 if (FuncGetRunningFlag() == false)
                                 {
                                     break;
                                 }
 
-                                string indexTitle = $"{curIndex.ToString().PadLeft(4, '0')}.{page.Key}";
-                                string path = page.Value;
-                                string url = GetPageUrl(curCrawlingInfo.Title, path);
+                                var page = indexPath.page;
+                                int curIdx = indexPath.index;
 
-                                while(lstTask.Count >= asyncJobCnt)
+                                if (curCrawlingInfo.BetweenIndex(curIdx))
                                 {
-                                    Task.WaitAny(lstTask.ToArray());
-                                    lstTask.RemoveAll(x => x.IsCompleted);
-                                }
+                                    string indexTitle = $"{curIdx.ToString().PadLeft(4, '0')}.{page.Key}";
+                                    string path = page.Value;
+                                    string url = GetPageUrl(curCrawlingInfo.Title, path);
 
-                                FuncLog($"{curCrawlingInfo.Title} - downloading page {indexTitle}");
-
-                                lstTask.Add(Task.Run(() =>
-                                {
-                                    List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, indexTitle);
-                                    if (lstItem.Count == 0)
+                                    while (lstTask.Count >= asyncJobCnt)
                                     {
-                                        FuncLog($"{curCrawlingInfo.Title} - {curIndex} - empty");
+                                        Task.WaitAny(lstTask.ToArray());
+                                        lstTask.RemoveAll(x => x.IsCompleted);
                                     }
-                                    else
+
+                                    FuncLog($"{curCrawlingInfo.Title} - downloading page {indexTitle}");
+
+                                    lstTask.Add(Task.Run(() =>
                                     {
-                                        lock (strLock)
+                                        List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, indexTitle);
+                                        if (lstItem.Count == 0)
                                         {
-                                            result.AddRange(lstItem);
+                                            FuncLog($"{curCrawlingInfo.Title} - {curIdx} - empty");
                                         }
-                                    }
-                                }));
-
-                                curIndex++;
+                                        else
+                                        {
+                                            lock (strLock)
+                                            {
+                                                result.AddRange(lstItem);
+                                            }
+                                        }
+                                    }));
+                                }
                             }
                         }
                     }
