@@ -12,6 +12,18 @@ namespace LibWebToonCrawler
 {
     public class CrawlerEngine : BaseEngine<CrawlingItem>
     {
+        public static readonly string DownloadPath = $"{System.IO.Directory.GetCurrentDirectory()}\\download";
+
+        public static string GetDownloadBasePath(string title)
+        {
+            return $"{DownloadPath}\\{title}";
+        }
+
+        public static string GetDownloadPath(string title, string indexName)
+        {
+            return $"{GetDownloadBasePath(title)}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(indexName)}";
+        }
+
         private List<CrawlingInfo> LstCrawlingInfo { get; }
 
         public CrawlerEngine(string json
@@ -74,7 +86,8 @@ namespace LibWebToonCrawler
             int jobIncreaseStep = 5;
             List<Task<double>> lstTask = new List<Task<double>>();
 
-            Action<int> funcTaskComplete = (i) => {
+            Action<int> funcTaskComplete = (i) =>
+            {
                 var completeTask = lstTask[i];
                 double byteSec = completeTask.Result;
 
@@ -129,7 +142,7 @@ namespace LibWebToonCrawler
                     List<CrawlingItem> lstNumberOfTitle = lstAllItem.Where(x => x.ItemTitle == title && x.ItemNumber == itemNumber).ToList();
 
                     //task 개수 맞춰질때까지 대기
-                    while(lstTask.Count >= maxAsyncJob)
+                    while (lstTask.Count >= maxAsyncJob)
                     {
                         int taskIdx = Task.WaitAny(lstTask.ToArray());
                         funcTaskComplete(taskIdx);
@@ -161,6 +174,7 @@ namespace LibWebToonCrawler
         private async Task<double> DownloadNumberOfTitleImg(List<CrawlingItem> lstItem, List<CrawlingItem> lstAllItem)
         {
             string itemId = "";
+            string itemTitle = "";
             double totalByteSec = 0;
             long totalFileSize = 0;
             double totalDownloadSec = 0;
@@ -169,11 +183,11 @@ namespace LibWebToonCrawler
             try
             {
                 itemId = lstItem[0].ItemId;
+                itemTitle = lstItem[0].ItemTitle;
 
-                string baseDir = $"{System.IO.Directory.GetCurrentDirectory()}\\download\\{lstItem[0].ItemTitle}";
                 Func<string, string> getDownlaodPath = (id) =>
                 {
-                    string path = $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}";
+                    string path = GetDownloadPath(itemTitle, id);
                     if (System.IO.Directory.Exists(path) == false)
                     {
                         System.IO.Directory.CreateDirectory(path);
@@ -197,19 +211,19 @@ namespace LibWebToonCrawler
 
                 Func<string, string> getZipFilePath = (id) =>
                 {
-                    return $"{baseDir}\\{Helper.CommonHelper.RemoveInvalidFileNameChars(id)}.zip";
+                    return $"{GetDownloadPath(itemTitle, id)}.zip";
                 };
 
                 Action<string> zipImg = (id) =>
                 {
-                        //압축
-                        string srcPath = getDownlaodPath(id);
+                    //압축
+                    string srcPath = getDownlaodPath(id);
                     string destPath = getZipFilePath(id);
 
                     ZipFile.CreateFromDirectory(srcPath, destPath);
 
-                        //압축 후 삭제
-                        System.IO.Directory.Delete(srcPath, true);
+                    //압축 후 삭제
+                    System.IO.Directory.Delete(srcPath, true);
                 };
 
 
@@ -257,7 +271,7 @@ namespace LibWebToonCrawler
 
                                     imageFileInfo.Refresh();
                                     fileSize = imageFileInfo.Length;
-                                    
+
                                     totalFileSize += fileSize;
                                     totalDownloadSec += (endDatetime - startDatetime).TotalMilliseconds / 1000.0;
 
@@ -318,14 +332,16 @@ namespace LibWebToonCrawler
                 SiteName = "툰코",
                 Title = "제목1",
                 IndexUrl = "https://abc.com/def",
-                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" }
+                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" },
+                RetryFailIndex = "N"
             });
             sample.Add(new CrawlingInfo()
             {
                 SiteName = "툰코",
                 Title = "제목2",
                 IndexUrl = "https://abc.com/def2",
-                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" }
+                InputIndex = new string[] { "1-3", "5", $"7-{int.MaxValue}" },
+                RetryFailIndex = "Y"
             });
 
             return sample;

@@ -68,7 +68,7 @@ namespace LibWebToonCrawler.Parser
             }
         }
 
-        private Dictionary<string, string> GetWebToonIndex(string url)
+        private Dictionary<string, string> GetIndex(string url)
         {
             var result = new Dictionary<string, string>();
 
@@ -107,7 +107,7 @@ namespace LibWebToonCrawler.Parser
             return result.Reverse().ToDictionary(x=> x.Key, x=> x.Value);
         }
 
-        private List<CrawlingItem> GetPageItem(string pageUrl, string title, string itemNumber)
+        private List<CrawlingItem> GetIndexImageUrl(string pageUrl, string title, string itemNumber)
         {
             Func<string, HtmlDocument> getPageData = (url) =>
             {
@@ -143,7 +143,7 @@ namespace LibWebToonCrawler.Parser
 
             var lstItem = new List<CrawlingItem>();
             HtmlDocument domData = getPageData(pageUrl);
-            if (domData != null)
+            if (domData != null && domData.DocumentNode.ChildNodes.Count > 0)
             {
                 foreach (var img in domData.DocumentNode.ChildNodes)
                 {
@@ -166,6 +166,15 @@ namespace LibWebToonCrawler.Parser
             else
             {
                 FuncLog($"document is null");
+
+                //폴더 생성용 추가
+                lstItem.Add(new CrawlingItem()
+                {
+                    ItemTitle = title,
+                    ItemNumber = itemNumber,
+                    ItemUrl = "",
+                    ItemDesc = ""
+                });
             }
 
             return lstItem;
@@ -275,7 +284,7 @@ namespace LibWebToonCrawler.Parser
                     base.LastRunDate = DateTime.Now;
 
                     //전체 목차 다운로드
-                    Dictionary<string, string> dicIndexPath = GetWebToonIndex(curCrawlingInfo.IndexUrl);
+                    Dictionary<string, string> dicIndexPath = GetIndex(curCrawlingInfo.IndexUrl);
                     if (dicIndexPath.Count > 0)
                     {
                         if (curCrawlingInfo.GetIndex().Length > 0)
@@ -292,7 +301,7 @@ namespace LibWebToonCrawler.Parser
 
                                 if (curCrawlingInfo.BetweenIndex(curIdx))
                                 {
-                                    string indexTitle = $"{curIdx.ToString().PadLeft(4, '0')}.{page.Key}";
+                                    string indexTitle = $"{curIdx.ToString().PadLeft(4, '0')}_{page.Key}";
                                     string path = page.Value;
                                     string url = GetPageUrl(curCrawlingInfo.Title, path);
 
@@ -306,7 +315,7 @@ namespace LibWebToonCrawler.Parser
 
                                     lstTask.Add(Task.Run(() =>
                                     {
-                                        List<CrawlingItem> lstItem = GetPageItem(url, curCrawlingInfo.Title, indexTitle);
+                                        List<CrawlingItem> lstItem = GetIndexImageUrl(url, curCrawlingInfo.Title, indexTitle);
                                         if (lstItem.Count == 0)
                                         {
                                             FuncLog($"{curCrawlingInfo.Title} - {curIdx} - empty");
