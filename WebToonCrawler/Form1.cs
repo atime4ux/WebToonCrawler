@@ -134,14 +134,26 @@ namespace WebToonCrawler
                     TotalCnt = x.Count(),
                     SuccessCnt = x.Count(g => g.DownloadSuccess == true),
                     FailCnt = x.Count(g => g.DownloadFail == true)
-                }).Where(x => x.SuccessCnt != x.TotalCnt)
-                .OrderByDescending(x => {
+                })
+                .GroupBy(x => x.ItemTitle)
+                .Select(x => new
+                {
+                    ItemTitle = x.Key,
+                    TotalIndex = x.Count(),
+                    CompleteIndex = x.Count(g => (g.SuccessCnt + g.FailCnt) == g.TotalCnt),
+                    TotalCnt = x.Sum(g => g.TotalCnt),
+                    SuccessCnt = x.Sum(g => g.SuccessCnt),
+                    FailCnt = x.Sum(g => g.FailCnt)
+                })
+                .Where(x => x.SuccessCnt != x.TotalCnt)
+                .OrderByDescending(x =>
+                {
                     if (x.SuccessCnt > 0)
                     {
                         if ((x.SuccessCnt + x.FailCnt) != x.TotalCnt)
                         {
                             //진행중
-                            return 2;
+                            return 20;
                         }
                         else
                         {
@@ -152,12 +164,15 @@ namespace WebToonCrawler
                     else
                     {
                         //미진행
-                        return 1;
+                        return 10;
                     }
                 })
                 .ThenBy(x => x.ItemTitle)
-                .ThenBy(x => x.ItemNumber)
-                .Select(x => $"{x.ItemTitle} - {x.ItemNumber} : {x.SuccessCnt}/{x.TotalCnt}{(x.FailCnt > 0 ? $"(Fail:{x.FailCnt})" : "")}");
+                .Select(x =>
+                {
+                    string strFailCnt = x.FailCnt > 0 ? $"(Fail:{x.FailCnt})" : "";
+                    return $"{x.ItemTitle} [index:{x.CompleteIndex}/{x.TotalIndex}] [images:{x.SuccessCnt}/{x.TotalCnt}]{strFailCnt}";
+                });
 
             FormHelper.SetTextBox(txtItemList, string.Join("\r\n", itemStatus), "N");
         }

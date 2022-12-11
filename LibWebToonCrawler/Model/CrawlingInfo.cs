@@ -73,8 +73,17 @@ namespace LibWebToonCrawler.Model
 
         private List<int> LoadFailIndex()
         {
-            string[] arrIndexDirectory = System.IO.Directory.GetDirectories(GetDownloadPath())
-                .Select(x=> System.IO.Path.GetFileName(x)).ToArray();
+            string[] arrIndexDirectory;
+            if (System.IO.Directory.Exists(GetDownloadPath()))
+            {
+                arrIndexDirectory = System.IO.Directory.GetDirectories(GetDownloadPath())
+                    .Select(x => System.IO.Path.GetFileName(x)).ToArray();
+            }
+            else
+            {
+                arrIndexDirectory = new string[] { };
+            }
+            
             return arrIndexDirectory.Select(x => Convert.ToInt32(x.Split('_')[0])).ToList();
         }
     }
